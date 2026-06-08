@@ -1,4 +1,4 @@
-function Bisection_Method()
+function False_Position_Method()
     % =====================================================================
     % 1. PHYSICAL CONSTANTS & BEAM PROFILE PROPERTIES
     % =====================================================================
@@ -27,9 +27,8 @@ function Bisection_Method()
                         -(q/EI)*(L - s)*cos(Y(2)) - (P/EI)*cos(Y(2))];
     
     % =====================================================================
-    % 4. THE SHOOTING METHOD MECHANICS (BISECTION BRACKETING)
+    % 4. THE SHOOTING METHOD MECHANICS (FALSE-POSITION BRACKETING)
     % =====================================================================
-    % Bisection requires a valid boundary pair that guarantees a root sign flip
     lower_bound = -15.0;  % Under-guessed initial wall moment condition
     upper_bound = 5.0;    % Over-guessed initial wall moment condition
     
@@ -37,44 +36,38 @@ function Bisection_Method()
     sol_low = RK4(f_system, s_mesh, [0; 0; lower_bound]); error_low = sol_low(3, end);
     sol_upp = RK4(f_system, s_mesh, [0; 0; upper_bound]); error_upp = sol_upp(3, end);
     
-    % Verification pass: If both errors match sign directions, the root isn't bracketed
     if error_low * error_upp > 0
         error('Invalid initial domain brackets. Zero error root is not trapped.'); 
     end
     
     tolerance = 1e-9; max_iter = 50; converged = false;
-    fprintf('\n--- BISECTION METHOD ITERATION LOG (NON-LINEAR) ---\n');
+    fprintf('\n--- FALSE-POSITION METHOD ITERATION LOG (NON-LINEAR) ---\n');
     fprintf('%-10s %-15s %-15s %-15s\n', 'Iter', 'Lower Bound', 'Upper Bound', 'Residual Error');
     
     for iter = 1:max_iter
-        % BISECTION LAW: Calculate the exact midpoint of the current interval
-        next_guess = (lower_bound + upper_bound) / 2;
+        % REGULA FALSI LAW: Calculate zero-intercept crossing of the bracket line
+        next_guess = upper_bound - (error_upp * (lower_bound - upper_bound)) / (error_low - error_upp);
         
-        % Execute a simulation pass tracking using our midpoint guess
         sol_next = RK4(f_system, s_mesh, [0; 0; next_guess]); error_next = sol_next(3, end);
         
         fprintf('%-10d %-15.4f %-15.4f %-15.4e\n', iter, lower_bound, upper_bound, error_next);
         
-        % Monitor accuracy exit conditions
-        if abs(error_next) < tolerance || (upper_bound - lower_bound)/2 < tolerance
+        if abs(error_next) < tolerance
             fprintf('Convergence verified in %d iterations!\n', iter);
             final_solution = sol_next; converged = true; break;
         end
         
-        % INTERVAL HALVING: Shrink the bracket by replacing the boundary with matching sign
         if (error_low * error_next) < 0
-            upper_bound = next_guess; % The root lies in the lower half region
-            error_upp   = error_next; 
+            upper_bound = next_guess; error_upp = error_next;
         else
-            lower_bound = next_guess; % The root lies in the upper half region
-            error_low   = error_next; 
+            lower_bound = next_guess; error_low = error_next;
         end
     end
-    if ~converged, error('The bisection system failed to resolve within iteration counts.'); end
+    if ~converged, error('The bracket system failed to resolve within iteration counts.'); end
     
-    print_and_plot_results(s_mesh, final_solution, L, 'Bisection Method (Non-Linear)');
+    print_and_plot_results(s_mesh, final_solution, L, 'False-Position Method (Non-Linear)');
     
-end  % Closes the main Bisection_Method function block
+end  % <--- CRITICAL: Closes the main False_Position_Method function block
 
 % =========================================================================
 % HELPER UTILITY A: RUNGE-KUTTA 4TH ORDER STEP INTEGRATOR
